@@ -54,8 +54,8 @@ public class StartApplication extends MIDlet {
     /** index of the blue component of the led */
     private static final int BLUE = 2;
     /** minimal value for the accelerometer */
-    private static final double MINIMAL_ACCELERATION_X = 0.2;
-    private static final double MINIMAL_ACCELERATION_Y = 0.3;
+    private static final double MINIMAL_ACCELERATION_X = 0.3; //0.2;
+    private static final double MINIMAL_ACCELERATION_Y = 0.4; //0.3;
     /** indicates no player action */
     private static final int ACTION_NONE = 0;
     /** indicates the player wants to shift the leds to the left */
@@ -117,7 +117,7 @@ public class StartApplication extends MIDlet {
 
         LedsHelper.setOff();
         LedsHelper.sneake();
-        LedsHelper.blink(null);
+        LedsHelper.blink();
 
         exitListener = new ExitListener(this);
         exitListenerThread = new Thread(exitListener);
