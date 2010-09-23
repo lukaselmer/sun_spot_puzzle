@@ -1,58 +1,27 @@
 package org.sunspotworld;
 
 import org.sunspotworld.helpers.LedsHelper;
-import com.sun.spot.flashmanagement.FlashFile;
-import com.sun.spot.peripheral.Spot;
 import com.sun.spot.sensorboard.EDemoBoard;
-import com.sun.spot.sensorboard.peripheral.ISwitch;
 import com.sun.spot.sensorboard.peripheral.ITriColorLED;
-import com.sun.spot.peripheral.radio.RadioFactory;
-import com.sun.spot.peripheral.radio.IRadioPolicyManager;
-import com.sun.spot.io.j2me.radiostream.*;
-import com.sun.spot.io.j2me.radiogram.*;
 import com.sun.spot.sensorboard.io.IScalarInput;
 import com.sun.spot.sensorboard.peripheral.IAccelerometer3D;
 import com.sun.spot.sensorboard.peripheral.LEDColor;
 import com.sun.spot.util.*;
 
-
-import java.io.IOException;
 import java.util.Random;
 
 import java.io.*;
-import javax.microedition.io.*;
 import javax.microedition.midlet.MIDlet;
 import javax.microedition.midlet.MIDletStateChangeException;
 import javax.microedition.rms.RecordStore;
-import javax.microedition.rms.RecordStoreException;
-import javax.microedition.rms.RecordStoreFullException;
-import javax.microedition.rms.RecordStoreNotOpenException;
 
 /**
- * A motion controlled Puzzle for the SunSPOT (Green SDK)
- * The Goal is to (re-)create a rainbow of LEDs starting with the red led on the left.
- * There are four moves : shift left and shift right by tilting the spot to the left or right.
- * The two other moves are tilt forward and backward and swap the 4 middle leds in a certain way.
- * ----------------------------------------------------------------------------------------------
- * (C) 2007 E.Hooijmeijer / www.ctrl-alt-dev.nl
- * This software is published under the GNU Public Licence v2 or better (www.gnu.org)
- * For the development blog visit Eriks SunSPOT Adventures at http://joce.nljug.org
- * @author E.Hooijmeijer
+ * SunSpotPuzzle game class
+ * @author Lukas Elmer
  */
 public class StartApplication extends MIDlet {
 
-    /** index of the X axis */
-    private static final int X = 0;
-    /** index of the Y axis */
-    private static final int Y = 1;
-    /** index of the Z axis */
-    private static final int Z = 2;
-    /** index of the red component of the led */
-    private static final int RED = 0;
-    /** index of the green component of the led */
-    private static final int GREEN = 1;
-    /** index of the blue component of the led */
-    private static final int BLUE = 2;
+    // Constanst
     /** minimal value for the accelerometer */
     private static final double MINIMAL_ACCELERATION_X = 0.3; //0.2;
     private static final double MINIMAL_ACCELERATION_Y = 0.4; //0.3;
@@ -66,33 +35,24 @@ public class StartApplication extends MIDlet {
     private static final int ACTION_UP = 5;
     /** indicates the player has tilted the spot down */
     private static final int ACTION_DOWN = 6;
-    //
     // Hardware
-    //
     private IAccelerometer3D accel = EDemoBoard.getInstance().getAccelerometer();
-    //private IScalarInput[] axis = new IScalarInput[]{accel.getXAxis(), accel.getYAxis(), accel.getZAxis()};
     private IScalarInput[] axis = EDemoBoard.getInstance().getScalarInputs();
     private ITriColorLED[] leds = EDemoBoard.getInstance().getLEDs();
     /** holds the current state of the puzzle */
     private LEDColor[] puzzle = new LEDColor[leds.length];
     /** holds the solved state of the puzzle */
     public final LEDColor[] reference = new LEDColor[leds.length];
-    //private double[] zeroOffset = {465.5, 465.5, 465.5};     // default zero offset for raw accelerator value
-    //private double[] sensitivity = {186.2, 186.2, 186.2};    // default conversion factor from raw accelerator value to G's
-    //private double[] movement;
-    private ExitListener exitListener;
-    private Thread exitListenerThread;
-    private ShowSolutionListener showSolutionListener;
-    private Thread showSolutionListenerThread;
+    // Puzzle state vars
     private boolean paused = false;
     private int swapTimes = 0, cycleTimes = 0, gameTimes = 0;
     private long startTime = System.currentTimeMillis();
-    private Thread resultTransmitterThread;
-    private ResultTransmitter resultTransmitter;
     private static Random random = new Random();
+    // Listeners / Background tasks
+    private ShowSolutionListener showSolutionListener;
+    private ExitListener exitListener;
+    private ResultTransmitter resultTransmitter;
     private ShuffleListener shuffleListener;
-//    private SpotActivitySender spotActivitySender;
-//    private Thread spotActivitySenderThread;
 
     /**
      * MIDlet call to start the application.
@@ -100,40 +60,32 @@ public class StartApplication extends MIDlet {
     protected void startApp() throws MIDletStateChangeException {
         new BootloaderListener().start();   // monitor the USB (if connected) and recognize commands from host
 
-        resultTransmitter = new ResultTransmitter();
-        resultTransmitterThread = new Thread(resultTransmitter);
-        resultTransmitterThread.start();
-//        for (int i = 0; i < 50; i++) {
-//            resultTransmitter.addStatistics(50 + random.nextInt(150), 50 + random.nextInt(150), i);
-//        }
-
-//        spotActivitySender = new SpotActivitySender();
-//        spotActivitySenderThread = new Thread(spotActivitySender);
-//        spotActivitySenderThread.start();
-
-
         setupPuzzle(puzzle);
         setupPuzzle(reference);
+
+        // Start result transmitter
+        resultTransmitter = new ResultTransmitter();
+        resultTransmitter.addStatistics(50 + random.nextInt(150), 50 + random.nextInt(150), (long) (50 + random.nextInt(150) * 500), 1);
+        //        for (int i = 0; i < 50; i++) {
+        //            resultTransmitter.addStatistics(50 + random.nextInt(150), 50 + random.nextInt(150), i);
+        //        }
+        exitListener = new ExitListener(this);
+        showSolutionListener = new ShowSolutionListener(this);
+        shuffleListener = new ShuffleListener(this);
 
         LedsHelper.setOff();
         LedsHelper.sneake();
         LedsHelper.blink();
 
-        exitListener = new ExitListener(this);
-        exitListenerThread = new Thread(exitListener);
-        exitListenerThread.start();
+        resetGame(false);
 
-        showSolutionListener = new ShowSolutionListener(this);
-        showSolutionListenerThread = new Thread(showSolutionListener);
-        showSolutionListenerThread.start();
-
-        shuffle();
-
-        shuffleListener = new ShuffleListener(this);
-        shuffleListener.start();
-
-        startTime = System.currentTimeMillis();
         playGame();
+
+
+        //        spotActivitySender = new SpotActivitySender();
+        //        spotActivitySenderThread = new Thread(spotActivitySender);
+        //        spotActivitySenderThread.start();
+
     }
 
     /**
@@ -153,7 +105,7 @@ public class StartApplication extends MIDlet {
     }
 
     public void shuffle() {
-        shuffle(32);
+        shuffle(random.nextInt(20) + 60);
     }
 
     public void shuffle(int times) {
@@ -232,16 +184,23 @@ public class StartApplication extends MIDlet {
         }
     }
 
-    private void resetGame() {
+    public void resetGame() {
+        resetGame(true);
+    }
+
+    public void resetGame(boolean saveGameStatistics) {
         pauseApp();
-        LedsHelper.blink(null);
-        long timeNeeded = System.currentTimeMillis() - startTime;
-        saveGameStatistics(swapTimes, cycleTimes, timeNeeded, ++gameTimes);
+        if (saveGameStatistics) {
+            LedsHelper.blink();
+            long timeNeeded = System.currentTimeMillis() - startTime;
+            saveGameStatistics(swapTimes, cycleTimes, timeNeeded, ++gameTimes);
+        }
         startTime = System.currentTimeMillis();
         swapTimes = 0;
         cycleTimes = 0;
-        resumeApp();
         shuffle();
+        LedsHelper.blink();
+        resumeApp();
     }
 
     /**
@@ -334,8 +293,11 @@ public class StartApplication extends MIDlet {
     public void exit() {
         pauseApp();
         try {
-            exitListenerThread.interrupt();
-            showSolutionListenerThread.interrupt();
+            //exitListenerThread.interrupt();
+            exitListener.stopService();
+            resultTransmitter.stopService();
+            showSolutionListener.stopService();
+            shuffleListener.stopService();
         } catch (Exception ex) {
         }
         LedsHelper.sneake(LEDColor.CYAN);

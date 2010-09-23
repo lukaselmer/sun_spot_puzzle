@@ -19,24 +19,34 @@ import javax.microedition.midlet.MIDletStateChangeException;
  *
  * @author Lukas Elmer
  */
-public class ExitListener implements Runnable {
+public class ExitListener {
 
     private ISwitch sw2 = EDemoBoard.getInstance().getSwitches()[EDemoBoard.SW2];
     private final StartApplication midlet;
+    private final Thread t;
+    private boolean run = true;
 
-    public ExitListener(StartApplication midlet) {
-        this.midlet = midlet;
+    public ExitListener(StartApplication m) {
+        this.midlet = m;
+        Runnable r = new Runnable() {
+
+            public void run() {
+                try {
+                    while (run) {
+                        if (sw2.isClosed()) {
+                            midlet.exit();
+                        }
+                        Utils.sleep(100);
+                    }
+                } catch (Exception ex) {
+                }
+            }
+        };
+        t = new Thread(r, "ExitListener");
+        t.start();
     }
 
-    public void run() {
-        try {
-            while (true) {
-                if (sw2.isClosed()) {
-                    midlet.exit();
-                }
-                Utils.sleep(100);
-            }
-        } catch (Exception ex) {
-        }
+    public void stopService() {
+        run = false;
     }
 }
