@@ -61,8 +61,13 @@ public class HttpRequstSender implements Runnable {
             Utils.sleep(3000);
         }
         System.out.print("Queue = " + requests.size() + "; Transmitting URL '" + urls.size() + "'...");
+        int connectionFailedCounter = 0;
         while (!transmit(urls)) {
             System.out.println(" failed! Trying again...");
+            if (connectionFailedCounter > 5) {
+                hostFinder.resetHost();
+            }
+            connectionFailedCounter++;
         }
         System.out.println("ok!");
     }

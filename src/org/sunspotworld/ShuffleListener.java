@@ -13,7 +13,7 @@ import org.sunspotworld.helpers.LedsHelper;
  */
 public class ShuffleListener extends Thread {
 
-    public static final int SHUFFLE_TIMES_LIMIT = 2;
+    public static final int SHUFFLE_TIMES_LIMIT = 100;
     private IAccelerometer3D accel = EDemoBoard.getInstance().getAccelerometer();
     private final StartApplication midlet;
     private boolean run = true;
@@ -31,9 +31,9 @@ public class ShuffleListener extends Thread {
                             if (shuffleTimes >= SHUFFLE_TIMES_LIMIT) {
                                 midlet.pauseApp();
                                 LedsHelper.blink();
-                                midlet.resetGame(false);
+                                midlet.resetGame();
                             } else {
-                                shuffleTimes += 2;
+                                shuffleTimes += 5;
                             }
                         } else {
                             if (shuffleTimes > 0) {

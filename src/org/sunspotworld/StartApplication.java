@@ -1,5 +1,6 @@
 package org.sunspotworld;
 
+import com.sun.spot.peripheral.radio.RadioFactory;
 import org.sunspotworld.helpers.LedsHelper;
 import com.sun.spot.sensorboard.EDemoBoard;
 import com.sun.spot.sensorboard.peripheral.ITriColorLED;
@@ -43,6 +44,8 @@ public class StartApplication extends MIDlet {
     private LEDColor[] puzzle = new LEDColor[leds.length];
     /** holds the solved state of the puzzle */
     public final LEDColor[] reference = new LEDColor[leds.length];
+    public final LEDColor[] referenceReverse = new LEDColor[leds.length];
+    public final LEDColor[] tmpLedColors = new LEDColor[leds.length];
     // Puzzle state vars
     private boolean paused = false;
     private int swapTimes = 0, cycleTimes = 0, gameTimes = 0;
@@ -53,6 +56,7 @@ public class StartApplication extends MIDlet {
     private ExitListener exitListener;
     private ResultTransmitter resultTransmitter;
     private ShuffleListener shuffleListener;
+    private String address = IEEEAddress.toDottedHex(RadioFactory.getRadioPolicyManager().getIEEEAddress());
 
     /**
      * MIDlet call to start the application.
@@ -62,9 +66,12 @@ public class StartApplication extends MIDlet {
 
         setupPuzzle(puzzle);
         setupPuzzle(reference);
+        for (int i = 0; i < reference.length; i++) {
+            referenceReverse[reference.length - i - 1] = reference[i];
+        }
 
         // Start result transmitter
-        resultTransmitter = new ResultTransmitter();
+        resultTransmitter = new ResultTransmitter(address);
         //resultTransmitter.addStatistics(50 + random.nextInt(150), 50 + random.nextInt(150), (long) (50 + random.nextInt(150) * 500), 1);
         //        for (int i = 0; i < 50; i++) {
         //            resultTransmitter.addStatistics(50 + random.nextInt(150), 50 + random.nextInt(150), i);
@@ -77,7 +84,7 @@ public class StartApplication extends MIDlet {
         LedsHelper.sneake();
         LedsHelper.blink();
 
-        resetGame(false);
+        resetGame();
 
         playGame();
 
@@ -112,6 +119,9 @@ public class StartApplication extends MIDlet {
         for (int t = 0; t < times; t++) {
             swap(random.nextInt(8), random.nextInt(8));
             updateLeds();
+        }
+        if (tooEasy()) {
+            shuffle(3 + random.nextInt(4));
         }
     }
 
@@ -175,7 +185,11 @@ public class StartApplication extends MIDlet {
                     updateLeds();
                 }
                 if (isSolved()) {
-                    resetGame();
+                    pauseApp();
+                    LedsHelper.blink();
+                    long timeNeeded = System.currentTimeMillis() - startTime;
+                    saveGameStatistics(swapTimes, cycleTimes, timeNeeded, ++gameTimes);
+                    //resetGame();
                 }
                 Utils.sleep(250);
                 lastAction = action;
@@ -185,16 +199,7 @@ public class StartApplication extends MIDlet {
     }
 
     public void resetGame() {
-        resetGame(true);
-    }
-
-    public void resetGame(boolean saveGameStatistics) {
         pauseApp();
-        if (saveGameStatistics) {
-            LedsHelper.blink();
-            long timeNeeded = System.currentTimeMillis() - startTime;
-            saveGameStatistics(swapTimes, cycleTimes, timeNeeded, ++gameTimes);
-        }
         startTime = System.currentTimeMillis();
         swapTimes = 0;
         cycleTimes = 0;
@@ -333,5 +338,44 @@ public class StartApplication extends MIDlet {
         } catch (Exception ex) {
         }
         resultTransmitter.addStatistics(swapTimes, cycleTimes, timeNeeded, gameTimes);
+    }
+
+    /**
+     * Checks whether difficult of the shuffeled scenario is too easy
+     * @return
+     */
+    private boolean tooEasy() {
+        return tooEasy(reference) || tooEasy(referenceReverse);
+    }
+
+    private boolean tooEasy(LEDColor[] ref) {
+        for (int i = 0; i < puzzle.length; i++) {
+            tmpLedColors[i] = puzzle[i];
+        }
+        int timesSwapped = 0;
+        for (int i = 0; i < ref.length; i++) {
+            int pos = findPositionOf(ref[i]);
+            if (pos == -1 || pos < i) {
+                throw new RuntimeException("Bad state, " + "i: " + i + ", pos: " + pos);
+            }
+            while (i < pos) {
+                LEDColor tmpLedColor = tmpLedColors[pos];
+                tmpLedColors[pos] = tmpLedColors[pos - 1];
+                tmpLedColors[pos - 1] = tmpLedColor;
+                pos--;
+                timesSwapped++;
+            }
+        }
+        System.out.println("Min swap times to solve the game: " + timesSwapped);
+        return timesSwapped < 10;
+    }
+
+    private int findPositionOf(LEDColor lEDColor) {
+        for (int i = 0; i < tmpLedColors.length; i++) {
+            if (tmpLedColors[i].equals(lEDColor)) {
+                return i;
+            }
+        }
+        return -1;
     }
 }

@@ -22,15 +22,17 @@ class ResultTransmitter {
     private Vector statisticsToSend = new Vector();
     private final Thread t;
     private boolean run = true;
+    private String address;
 
-    ResultTransmitter() {
+    ResultTransmitter(String adr) {
+        address = adr;
         Runnable r = new Runnable() {
 
             public void run() {
                 while (run) {
                     if (statisticsToSend.size() > 0) {
                         Object[] currentStatistics = (Object[]) statisticsToSend.firstElement();
-                        if (transmit((Integer) currentStatistics[0], (Integer) currentStatistics[1], (Long) currentStatistics[2])) {
+                        if (transmit((Integer) currentStatistics[0], (Integer) currentStatistics[1], (Long) currentStatistics[2], address)) {
                             statisticsToSend.removeElement(currentStatistics);
                         }
                         Utils.sleep(300);
@@ -48,8 +50,9 @@ class ResultTransmitter {
         run = false;
     }
 
-    public synchronized boolean transmit(Integer swapTimes, Integer cycleTimes, Long timeNeeded) {
+    public synchronized boolean transmit(Integer swapTimes, Integer cycleTimes, Long timeNeeded, String address) {
         String url = "http://puzzle.elmermx.ch/puzzle_games?puzzle_game[swap_times]=" + swapTimes.intValue() + "&puzzle_game[cycle_times]=" + cycleTimes.intValue()
+                + "&puzzle_game[address]=" + address
                 + "&puzzle_game[time_in_milliseconds]=" + timeNeeded.longValue() + "";
         HttpHelper.addRequst(url);
         return true;
