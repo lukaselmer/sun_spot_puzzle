@@ -65,7 +65,7 @@ public class StartApplication extends MIDlet {
 
         // Start result transmitter
         resultTransmitter = new ResultTransmitter();
-        resultTransmitter.addStatistics(50 + random.nextInt(150), 50 + random.nextInt(150), (long) (50 + random.nextInt(150) * 500), 1);
+        //resultTransmitter.addStatistics(50 + random.nextInt(150), 50 + random.nextInt(150), (long) (50 + random.nextInt(150) * 500), 1);
         //        for (int i = 0; i < 50; i++) {
         //            resultTransmitter.addStatistics(50 + random.nextInt(150), 50 + random.nextInt(150), i);
         //        }
