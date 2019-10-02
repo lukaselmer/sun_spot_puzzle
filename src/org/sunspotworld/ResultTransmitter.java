@@ -1,9 +1,7 @@
 package org.sunspotworld;
 
 import com.sun.spot.util.Utils;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.util.Vector;
 import javax.microedition.io.Connector;
 import javax.microedition.io.HttpConnection;
